@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Final Boss — Dynamic Consent (Demo)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Dynamic consent for synthetic media: viral-threshold updates + verify. Demo by Final Boss Technology.">
+  <style>
+    :root{--bg:#0b0f14;--panel:#111827;--panel2:#0f172a;--text:#e6edf3;--muted:#9aa7b1;--accent:#60a5fa;--ok:#22c55e;--no:#f97316;--line:#1f2937}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b0f14,#0a0f16 55%);color:var(--text);font:16px system-ui,Segoe UI,Arial}
+    header{padding:22px 18px;border-bottom:1px solid var(--line);background:rgba(10,14,18,.6);backdrop-filter:blur(6px);position:sticky;top:0}
+    h1{margin:0;font-size:18px;letter-spacing:.2px}
+    main{max-width:960px;margin:24px auto;padding:0 16px}
+    .hero{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px}
+    .hero h2{margin:0 0 6px 0;font-size:20px}
+    .small{color:var(--muted);font-size:13px}
+    .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin:14px 0}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select,button{font:14px system-ui;padding:10px 12px;border:1px solid #273244;border-radius:10px;background:#0e141c;color:var(--text)}
+    input,select{width:100%}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .btns{display:flex;gap:10px;flex-wrap:wrap}
+    button{cursor:pointer}
+    button.primary{background:var(--accent);border-color:#1d4ed8}
+    button.ok{background:var(--ok);border-color:#065f46}
+    button.no{background:var(--no);border-color:#7c2d12}
+    pre{background:#0a0f15;color:#9ae6b4;border:1px solid var(--line);border-radius:10px;padding:12px;overflow:auto}
+    .tags{display:flex;flex-wrap:wrap;gap:8px}
+    .tag{background:#0e141c;border:1px solid #273244;color:#cbd5e1;padding:6px 10px;border-radius:999px;font-size:12px}
+    footer{margin:18px 0 36px;color:var(--muted);font-size:12px;text-align:center}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0e141c;border:1px solid #273244;font-size:12px;margin-right:6px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Final Boss Technology — Dynamic Consent (Synthetic Media)</h1>
+  </header>
+  <main>
+    <section class="hero">
+      <h2>Live Policy That Adapts to “Viral” Signals</h2>
+      <p class="small">
+        Flow: Click <span class="pill">Simulate Viral Spike</span> → policy expands to allow <b>news-reporting</b>.
+        Then pick a Use Case + Region and hit <span class="pill">Verify</span> to get a boolean result and a policyCommitment (demo stand-in for zk).
+      </p>
+      <p class="small">Patent-pending: US 19/240,581 — “Blockchain-Based Dynamic Consent Management for Synthetic Media.”</p>
+    </section>
+
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Media ID</label>
+          <input id="mediaId" value="demo-media-001">
+        </div>
+        <div>
+          <label>Policy Commitment (demo)</label>
+          <input id="policyRoot" value="0xPOLICYROOTDEMO">
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div>
+          <label>Use Case</label>
+          <select id="useCase">
+            <option value="marketing">marketing</option>
+            <option value="research">research</option>
+            <option value="news-reporting">news-reporting</option>
+          </select>
+        </div>
+        <div>
+          <label>Region</label>
+          <select id="region">
+            <option value="US">US</option>
+            <option value="EU">EU</option>
+            <option value="ROW">ROW</option>
+          </select>
+        </div>
+      </div>
+      <div class="btns" style="margin-top:12px">
+        <button id="spikeBtn" class="primary">Simulate Viral Spike</button>
+        <button id="verifyBtn" class="ok">Verify</button>
+        <button id="revokeBtn" class="no">Revoke</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <label>Live Policy State</label>
+      <div class="tags" id="policyTags"></div>
+    </div>
+
+    <div class="card">
+      <label>Verification Result</label>
+      <pre id="out">{}</pre>
+    </div>
+
+    <footer>Demo for partner evaluation. Not legal advice. © Final Boss Technology.</footer>
+  </main>
+
+<script>
+(function(){
+  const state = {
+    mediaId: "demo-media-001",
+    policyCommitment: "0xPOLICYROOTDEMO",
+    viralThreshold: 10000,
+    currentViews: 9500,
+    baseAllowed: ["research","marketing"],
+    expandedAllowed: ["research","marketing","news-reporting"],
+    effectiveAllowed: ["research","marketing"],
+    regionsAllowed: ["US","EU","ROW"],
+    revoked: false
+  };
+  const $ = id => document.getElementById(id);
+
+  function tag(text){
+    const el = document.createElement("span");
+    el.className = "tag";
+    el.textContent = text;
+    return el;
+  }
+  function drawPolicy(){
+    const tags = [];
+    state.effectiveAllowed.forEach(u => tags.push(tag(`use:${u}`)));
+    state.regionsAllowed.forEach(r => tags.push(tag(`region:${r}`)));
+    tags.push(tag(`views:${state.currentViews}/${state.viralThreshold}`));
+    tags.push(tag(state.revoked ? "status:revoked" : "status:active"));
+    tags.push(tag(`policy:${state.policyCommitment}`));
+    $("policyTags").innerHTML = "";
+    tags.forEach(t => $("policyTags").appendChild(t));
+  }
+  function spike(){ state.currentViews = state.viralThreshold + 1; state.effectiveAllowed = state.expandedAllowed.slice(); drawPolicy(); }
+  function reset(){
+    state.currentViews = 9500; state.effectiveAllowed = state.baseAllowed.slice(); state.revoked = false;
+    $("mediaId").value = state.mediaId; $("policyRoot").value = state.policyCommitment;
+    $("useCase").value = "marketing"; $("region").value = "US"; $("out").textContent = "{}"; drawPolicy();
+  }
+  function revoke(){ state.revoked = true; drawPolicy(); }
+  function verify(){
+    const mediaId = $("mediaId").value.trim();
+    const useCase = $("useCase").value;
+    const region  = $("region").value;
+    const commitment = $("policyRoot").value.trim() || state.policyCommitment;
+    const okUse    = state.effectiveAllowed.includes(useCase);
+    const okRegion = state.regionsAllowed.includes(region);
+    const okStatus = !state.revoked;
+    const allowed = okUse && okRegion && okStatus;
+    const resp = {
+      mediaId,
+      request:{useCase,region},
+      allowed,
+      proof:"ZK_PROOF_PLACEHOLDER",
+      policyCommitment: commitment,
+      evaluated:{ okUse, okRegion, okStatus, currentViews: state.currentViews, viralThreshold: state.viralThreshold },
+      ts: new Date().toISOString()
+    };
+    $("out").textContent = JSON.stringify(resp,null,2);
+  }
+  $("spikeBtn").onclick = spike;
+  $("verifyBtn").onclick = verify;
+  $("resetBtn").onclick = reset;
+  $("revokeBtn").onclick = revoke;
+  drawPolicy();
+})();
+</script>
+</body>
+</html>
