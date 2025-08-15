@@ -1,3 +1,5 @@
+Test edit from my computer
+
 # Dynamic Consent Demo — Final Boss Technology
 
 Zero-setup demo: simulate viral threshold → policy expands (adds `news-reporting`) → verify requests.
